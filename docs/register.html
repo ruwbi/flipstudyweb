@@ -31,7 +31,6 @@
       <div class="field pw-field">
         <label>Password</label>
         <input id="regPass" type="password" autocomplete="new-password" placeholder="Choose a password" maxlength="32">
-        <button type="button" class="pw-toggle" id="regPwToggle" tabindex="-1" title="Show password"><i class="fas fa-eye"></i></button>
         <div class="strength-meter"><div class="strength-meter-fill" id="strengthFill"></div></div>
         <div class="strength-label" id="strengthLabel"></div>
         <ul class="pw-checklist" id="pwChecklist"></ul>
@@ -39,7 +38,6 @@
       <div class="field pw-field">
         <label>Confirm Password</label>
         <input id="regConfirm" type="password" autocomplete="new-password" placeholder="Re-enter your password" maxlength="32">
-        <button type="button" class="pw-toggle" id="confirmPwToggle" tabindex="-1" title="Show password"><i class="fas fa-eye"></i></button>
         <div class="field-hint" id="confirmHint"></div>
       </div>
       <button class="btn-primary" id="registerBtn" type="submit" disabled>Create Account</button>
@@ -48,6 +46,7 @@
   </div>
 </div>
 
+<script>window.FLIPSTUDY_API_BASE = 'https://flipstudy.onrender.com';</script>
 <script src="app.js"></script>
 <script>
 redirectIfLoggedIn();
@@ -63,13 +62,6 @@ function showErr(msg){ const e = document.getElementById('authError'); e.textCon
 function clearErr(){ document.getElementById('authError').style.display = 'none'; }
 function showSuccessMsg(msg){ const e = document.getElementById('authSuccess'); e.textContent = msg; e.style.display = 'block'; }
 
-function togglePw(inputEl, btnEl){
-  const shown = inputEl.type === 'text';
-  inputEl.type = shown ? 'password' : 'text';
-  btnEl.innerHTML = shown ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-}
-document.getElementById('regPwToggle').onclick = () => togglePw(passEl, document.getElementById('regPwToggle'));
-document.getElementById('confirmPwToggle').onclick = () => togglePw(confirmEl, document.getElementById('confirmPwToggle'));
 
 /* ---------------- Live validation — runs on every keystroke ---------------- */
 let userValid = false, emailValid = false, passValid = false, confirmValid = false;
