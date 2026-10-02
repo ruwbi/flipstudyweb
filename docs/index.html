@@ -191,7 +191,7 @@ function renderForgotConfirmHint(){
   if(!fConfirmEl.value){ hint.textContent = ''; hint.className = 'field-hint'; fConfirmValid = false; }
   else{
     fConfirmValid = fConfirmEl.value === fNewEl.value;
-    hint.textContent = fConfirmValid ? '✅ Passwords match' : 'Passwords do not match';
+    hint.textContent = fConfirmValid ? 'Passwords match' : 'Passwords do not match';
     hint.className = 'field-hint ' + (fConfirmValid ? 'valid' : 'invalid');
   }
   fResetBtn.disabled = !(fNewValid && fConfirmValid);
@@ -208,7 +208,7 @@ fResetBtn.onclick = async () => {
     forgotMsg(res.error, 'invalid');
     return;
   }
-  fResetBtn.textContent = 'Password reset ✅';
+  fResetBtn.textContent = 'Password reset';
   forgotMsg(res.message, 'valid');
   setTimeout(() => {
     document.getElementById('forgotOverlay').classList.remove('open');
