@@ -1,0 +1,224 @@
+//index
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FlipStudy — Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="authScreen">
+  <button class="theme-toggle-btn corner" id="themeToggleBtn" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
+  <div class="auth-card">
+    <div class="auth-brand"><div class="logo">FlipStudy</div><div class="tag">Your Smart Flashcard App</div></div>
+    <div id="authError" class="auth-error"></div>
+    <h2>Welcome back!</h2>
+    <form id="loginForm" novalidate>
+      <div class="field"><label>Username or Email</label><input id="loginUser" autocomplete="username" placeholder="Enter your username or email"></div>
+      <div class="field pw-field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Enter your password">
+      </div>
+      <div style="text-align:right; margin:-6px 0 14px;"><a id="forgotLink" class="link-btn" style="font-size:12.5px; cursor:pointer;">Forgot password?</a></div>
+      <button class="btn-primary" id="loginBtn" type="submit">Login</button>
+    </form>
+    <div class="switch-line">Don't have an account? <a href="register.html">Create New Account</a></div>
+  </div>
+</div>
+
+<!-- Forgot-password modal: 3 steps (identify → verify code → new password) -->
+<div class="modal-overlay" id="forgotOverlay">
+  <div class="modal">
+    <h3 id="forgotTitle"><i class="fas fa-key"></i> Reset Password</h3>
+    <div id="forgotMsg" class="field-hint" style="margin-bottom:10px;"></div>
+
+    <div id="forgotStep1">
+      <p class="subtle" style="margin-top:0;">Enter your username or email and we'll send a 6-digit code.</p>
+      <div class="field"><input id="forgotIdentifier" placeholder="Username or email"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="forgotCancel1">Cancel</button>
+        <button class="btn-primary" id="forgotSendBtn">Send Code</button>
+      </div>
+    </div>
+
+    <div id="forgotStep2" class="hidden">
+      <p class="subtle" style="margin-top:0;">Enter the 6-digit code sent to your email.</p>
+      <div class="field"><input id="forgotCode" maxlength="6" inputmode="numeric" placeholder="6-digit code" style="letter-spacing:4px; text-align:center; font-size:18px; font-weight:700;"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="forgotBack2">Back</button>
+        <button class="btn-primary" id="forgotVerifyBtn">Verify Code</button>
+      </div>
+    </div>
+
+    <div id="forgotStep3" class="hidden">
+      <p class="subtle" style="margin-top:0;">Verified! Create your new password.</p>
+      <div class="field pw-field"><input id="forgotNewPass" type="password" placeholder="New password" maxlength="32">
+        <div class="strength-meter"><div class="strength-meter-fill" id="forgotStrengthFill"></div></div>
+        <div class="strength-label" id="forgotStrengthLabel"></div>
+        <ul class="pw-checklist" id="forgotChecklist"></ul>
+      </div>
+      <div class="field"><input id="forgotConfirmPass" type="password" placeholder="Confirm new password" maxlength="32">
+        <div class="field-hint" id="forgotConfirmHint"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="forgotCancel3">Cancel</button>
+        <button class="btn-primary" id="forgotResetBtn" disabled>Reset Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>window.FLIPSTUDY_API_BASE = 'https://flipstudy.onrender.com';</script>
+<script src="app.js"></script>
+<script>
+redirectIfLoggedIn();
+document.getElementById('themeToggleBtn').onclick = toggleTheme;
+
+const userEl = document.getElementById('loginUser');
+const passEl = document.getElementById('loginPass');
+
+function showErr(msg){ const e = document.getElementById('authError'); e.textContent = msg; e.style.display = 'block'; }
+function clearErr(){ document.getElementById('authError').style.display = 'none'; }
+
+[userEl, passEl].forEach(el => el.addEventListener('input', () => { clearErr(); el.classList.remove('input-error'); }));
+(userEl.value ? passEl : userEl).focus();
+
+
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault(); // lets Enter submit from either field, and stops the page from reloading
+  clearErr();
+
+  if(!userEl.value.trim()){ showErr('Please enter your username or email'); shakeField(userEl); userEl.focus(); return; }
+  if(!passEl.value){ showErr('Please enter your password'); shakeField(passEl); passEl.focus(); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Logging in…';
+
+  const res = await loginUser(userEl.value, passEl.value);
+  if(!res.ok){
+    btn.disabled = false; btn.textContent = 'Login';
+    showErr(res.error);
+    shakeField(userEl); shakeField(passEl);
+    return;
+  }
+  window.location.href = 'dashboard.html';
+});
+
+/* ==================== Forgot password — 3-step flow ==================== */
+let forgotIdentifierValue = '', forgotCodeValue = '';
+
+function showForgotStep(n){
+  [1,2,3].forEach(i => document.getElementById('forgotStep' + i).classList.toggle('hidden', i !== n));
+  document.getElementById('forgotMsg').textContent = '';
+  document.getElementById('forgotMsg').className = 'field-hint';
+}
+function openForgot(){
+  document.getElementById('forgotIdentifier').value = userEl.value || '';
+  document.getElementById('forgotCode').value = '';
+  document.getElementById('forgotNewPass').value = '';
+  document.getElementById('forgotConfirmPass').value = '';
+  showForgotStep(1);
+  document.getElementById('forgotOverlay').classList.add('open');
+  document.getElementById('forgotIdentifier').focus();
+}
+document.getElementById('forgotLink').onclick = openForgot;
+document.getElementById('forgotCancel1').onclick = () => document.getElementById('forgotOverlay').classList.remove('open');
+document.getElementById('forgotCancel3').onclick = () => document.getElementById('forgotOverlay').classList.remove('open');
+document.getElementById('forgotBack2').onclick = () => showForgotStep(1);
+
+function forgotMsg(text, kind){
+  const el = document.getElementById('forgotMsg');
+  el.textContent = text;
+  el.className = 'field-hint ' + (kind || '');
+}
+
+/* Step 1 — request a code */
+document.getElementById('forgotSendBtn').onclick = async () => {
+  const idInput = document.getElementById('forgotIdentifier');
+  const identifier = idInput.value.trim();
+  if(!identifier){ shakeField(idInput); return; }
+  const btn = document.getElementById('forgotSendBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Sending…';
+  const res = await requestPasswordReset(identifier);
+  btn.disabled = false; btn.textContent = 'Send Code';
+  if(!res.ok){ forgotMsg(res.error, 'invalid'); shakeField(idInput); return; }
+  forgotIdentifierValue = identifier;
+  showForgotStep(2);
+  forgotMsg(res.demoMode ? `Demo mode — Code: ${res.demoCode}. Configure email in .env for real delivery.` : res.message, 'valid');
+  document.getElementById('forgotCode').focus();
+};
+
+/* Step 2 — verify the code */
+document.getElementById('forgotVerifyBtn').onclick = async () => {
+  const codeInput = document.getElementById('forgotCode');
+  const code = codeInput.value.trim();
+  if(!code){ shakeField(codeInput); return; }
+  const btn = document.getElementById('forgotVerifyBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verifying…';
+  const res = await verifyResetCode(forgotIdentifierValue, code);
+  btn.disabled = false; btn.textContent = 'Verify Code';
+  if(!res.ok){ forgotMsg(res.error, 'invalid'); shakeField(codeInput); return; }
+  forgotCodeValue = code;
+  showForgotStep(3);
+  forgotMsg(res.message, 'valid');
+  document.getElementById('forgotNewPass').focus();
+};
+
+/* Step 3 — set the new password (same live checklist pattern as registration) */
+const fNewEl = document.getElementById('forgotNewPass');
+const fConfirmEl = document.getElementById('forgotConfirmPass');
+const fResetBtn = document.getElementById('forgotResetBtn');
+let fNewValid = false, fConfirmValid = false;
+
+function renderForgotPwFeedback(){
+  const pw = fNewEl.value;
+  document.getElementById('forgotChecklist').innerHTML = passwordRuleChecklist(pw).map(r =>
+    `<li class="${r.met ? 'met' : ''}"><i class="fas ${r.met ? 'fa-check' : 'fa-circle'}"></i>${r.label}</li>`).join('');
+  const s = passwordStrength(pw);
+  document.getElementById('forgotStrengthFill').style.width = s.pct + '%';
+  document.getElementById('forgotStrengthFill').style.background = ['var(--red)','var(--red)','var(--amber-500)','var(--blue-500)','var(--green)'][s.level || 0];
+  const label = document.getElementById('forgotStrengthLabel');
+  label.textContent = pw ? s.label : '';
+  label.className = 'strength-label w' + (s.level || 0);
+  fNewValid = validatePassword(pw).valid;
+  renderForgotConfirmHint();
+}
+function renderForgotConfirmHint(){
+  const hint = document.getElementById('forgotConfirmHint');
+  if(!fConfirmEl.value){ hint.textContent = ''; hint.className = 'field-hint'; fConfirmValid = false; }
+  else{
+    fConfirmValid = fConfirmEl.value === fNewEl.value;
+    hint.textContent = fConfirmValid ? 'Passwords match' : 'Passwords do not match';
+    hint.className = 'field-hint ' + (fConfirmValid ? 'valid' : 'invalid');
+  }
+  fResetBtn.disabled = !(fNewValid && fConfirmValid);
+}
+fNewEl.addEventListener('input', renderForgotPwFeedback);
+fConfirmEl.addEventListener('input', renderForgotConfirmHint);
+
+fResetBtn.onclick = async () => {
+  if(!fNewValid || !fConfirmValid) return;
+  fResetBtn.disabled = true; fResetBtn.innerHTML = '<span class="spinner"></span> Resetting…';
+  const res = await resetPassword(forgotIdentifierValue, forgotCodeValue, fNewEl.value);
+  if(!res.ok){
+    fResetBtn.disabled = false; fResetBtn.textContent = 'Reset Password';
+    forgotMsg(res.error, 'invalid');
+    return;
+  }
+  fResetBtn.textContent = 'Password reset';
+  forgotMsg(res.message, 'valid');
+  setTimeout(() => {
+    document.getElementById('forgotOverlay').classList.remove('open');
+    fResetBtn.disabled = false; fResetBtn.textContent = 'Reset Password';
+    userEl.value = forgotIdentifierValue;
+    passEl.focus();
+  }, 1400);
+};
+</script>
+</body>
+</html>
