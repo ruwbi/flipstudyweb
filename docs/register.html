@@ -72,7 +72,7 @@ function renderUserHint(){
   if(!v){ hint.textContent = ''; hint.className = 'field-hint'; userValid = false; return updateSubmit(); }
   const r = validateUsername(v);
   userValid = r.valid;
-  hint.textContent = r.valid ? '✅ ' + r.message : r.message;
+  hint.textContent = r.valid ? ' ' + r.message : r.message;
   hint.className = 'field-hint ' + (r.valid ? 'valid' : 'invalid');
   updateSubmit();
 }
@@ -84,7 +84,7 @@ function renderEmailHint(){
   const r = validateEmail(v);
   if(!r.valid){ emailValid = false; hint.textContent = r.message; hint.className = 'field-hint invalid'; return updateSubmit(); }
   emailValid = true;
-  hint.textContent = '✅ Email looks good';
+  hint.textContent = 'Email looks good';
   hint.className = 'field-hint valid';
   updateSubmit();
 }
@@ -110,7 +110,7 @@ function renderConfirmHint(){
   const hint = document.getElementById('confirmHint');
   if(!confirmEl.value){ hint.textContent = ''; hint.className = 'field-hint'; confirmValid = false; return updateSubmit(); }
   confirmValid = confirmEl.value === passEl.value;
-  hint.textContent = confirmValid ? '✅ Passwords match' : 'Passwords do not match';
+  hint.textContent = confirmValid ? 'Passwords match' : 'Passwords do not match';
   hint.className = 'field-hint ' + (confirmValid ? 'valid' : 'invalid');
   updateSubmit();
 }
@@ -141,7 +141,7 @@ document.getElementById('registerForm').addEventListener('submit', async e => {
     return;
   }
   showSuccessMsg('Account created successfully! Redirecting to login...');
-  btn.textContent = 'Account created ✅';
+  btn.textContent = 'Account created';
   setTimeout(() => { window.location.href = 'index.html'; }, 2000);
 });
 </script>
