@@ -31,7 +31,6 @@
       <div class="field pw-field">
         <label>Password</label>
         <input id="regPass" type="password" autocomplete="new-password" placeholder="Choose a password" maxlength="32">
-        <button type="button" class="pw-toggle" id="regPwToggle" tabindex="-1" title="Show password"><i class="fas fa-eye"></i></button>
         <div class="strength-meter"><div class="strength-meter-fill" id="strengthFill"></div></div>
         <div class="strength-label" id="strengthLabel"></div>
         <ul class="pw-checklist" id="pwChecklist"></ul>
@@ -39,7 +38,6 @@
       <div class="field pw-field">
         <label>Confirm Password</label>
         <input id="regConfirm" type="password" autocomplete="new-password" placeholder="Re-enter your password" maxlength="32">
-        <button type="button" class="pw-toggle" id="confirmPwToggle" tabindex="-1" title="Show password"><i class="fas fa-eye"></i></button>
         <div class="field-hint" id="confirmHint"></div>
       </div>
       <button class="btn-primary" id="registerBtn" type="submit" disabled>Create Account</button>
@@ -65,13 +63,6 @@ function showErr(msg){ const e = document.getElementById('authError'); e.textCon
 function clearErr(){ document.getElementById('authError').style.display = 'none'; }
 function showSuccessMsg(msg){ const e = document.getElementById('authSuccess'); e.textContent = msg; e.style.display = 'block'; }
 
-function togglePw(inputEl, btnEl){
-  const shown = inputEl.type === 'text';
-  inputEl.type = shown ? 'password' : 'text';
-  btnEl.innerHTML = shown ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-}
-document.getElementById('regPwToggle').onclick = () => togglePw(passEl, document.getElementById('regPwToggle'));
-document.getElementById('confirmPwToggle').onclick = () => togglePw(confirmEl, document.getElementById('confirmPwToggle'));
 
 /* ---------------- Live validation — runs on every keystroke ---------------- */
 let userValid = false, emailValid = false, passValid = false, confirmValid = false;
@@ -82,7 +73,7 @@ function renderUserHint(){
   if(!v){ hint.textContent = ''; hint.className = 'field-hint'; userValid = false; return updateSubmit(); }
   const r = validateUsername(v);
   userValid = r.valid;
-  hint.textContent = r.valid ? '✅ ' + r.message : r.message;
+  hint.textContent = r.valid ? '' + r.message : r.message;
   hint.className = 'field-hint ' + (r.valid ? 'valid' : 'invalid');
   updateSubmit();
 }
@@ -94,7 +85,7 @@ function renderEmailHint(){
   const r = validateEmail(v);
   if(!r.valid){ emailValid = false; hint.textContent = r.message; hint.className = 'field-hint invalid'; return updateSubmit(); }
   emailValid = true;
-  hint.textContent = '✅ Email looks good';
+  hint.textContent = 'Email looks good';
   hint.className = 'field-hint valid';
   updateSubmit();
 }
@@ -120,7 +111,7 @@ function renderConfirmHint(){
   const hint = document.getElementById('confirmHint');
   if(!confirmEl.value){ hint.textContent = ''; hint.className = 'field-hint'; confirmValid = false; return updateSubmit(); }
   confirmValid = confirmEl.value === passEl.value;
-  hint.textContent = confirmValid ? '✅ Passwords match' : 'Passwords do not match';
+  hint.textContent = confirmValid ? 'Passwords match' : 'Passwords do not match';
   hint.className = 'field-hint ' + (confirmValid ? 'valid' : 'invalid');
   updateSubmit();
 }
@@ -151,7 +142,7 @@ document.getElementById('registerForm').addEventListener('submit', async e => {
     return;
   }
   showSuccessMsg('Account created successfully! Redirecting to login...');
-  btn.textContent = 'Account created ✅';
+  btn.textContent = 'Account created ';
   setTimeout(() => { window.location.href = 'index.html'; }, 2000);
 });
 </script>
