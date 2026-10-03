@@ -227,6 +227,17 @@ async function changePassword(currentPassword, newPassword){
   return apiFetch('/auth/change-password', { method:'POST', body: JSON.stringify({ currentPassword, newPassword }) });
 }
 
+/* ---------------- Forgot password — 3 steps, no auth required ---------------- */
+async function requestPasswordReset(identifier){
+  return apiFetch('/auth/forgot-password', { method:'POST', body: JSON.stringify({ identifier }) });
+}
+async function verifyResetCode(identifier, code){
+  return apiFetch('/auth/verify-reset-code', { method:'POST', body: JSON.stringify({ identifier, code }) });
+}
+async function resetPassword(identifier, code, newPassword){
+  return apiFetch('/auth/reset-password', { method:'POST', body: JSON.stringify({ identifier, code, newPassword }) });
+}
+
 /* =======================================================================
    DECKS & CARDS — a local cache backed by the real API.
    `refreshDecks()` is awaited ONCE per page load (see the bottom of each
