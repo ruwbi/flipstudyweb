@@ -1,0 +1,2 @@
+This folder holds the JSON "database" files (users.json, decks.json).
+They're created automatically on first run if missing.
