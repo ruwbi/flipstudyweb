@@ -1,17 +1,21 @@
 /* =======================================================================
-   /api/auth — registration, login, change-password, forgot-password.
+   /api/auth — registration, login, change-password.
+   (Forgot-password-by-email was removed on purpose — see README. Login
+   is protected instead by a short lockout after repeated failed
+   attempts, which is what actually stops a brute-force guess attack.)
    ======================================================================= */
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { readDB, writeDB } = require('../utils/db');
 const { validateUsername, validateEmail, validatePassword } = require('../utils/validation');
-const { welcomeEmail, verificationCodeEmail, passwordChangedEmail, demoMode } = require('../utils/email');
+const { welcomeEmail, passwordChangedEmail } = require('../utils/email');
 const requireAuth = require('../middleware/auth');
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
-const RESET_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 function newToken(){ return crypto.randomBytes(24).toString('hex'); }
 function publicUser(username, record){
@@ -25,6 +29,7 @@ function findUsernameByIdentifier(users, identifier){
   const lower = identifier.toLowerCase();
   return Object.keys(users).find(u => (users[u].email || '').toLowerCase() === lower) || null;
 }
+function minutesLeft(until){ return Math.max(1, Math.ceil((until - Date.now()) / 60000)); }
 
 /* ---------------------------------------------------------------------
    POST /api/auth/register  { username, email, password }
@@ -50,7 +55,10 @@ router.post('/register', async (req, res) => {
   if(emailInUse) return res.status(409).json({ error: 'This email is already in use' });
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  users[uname] = { email: mail, passwordHash, joined: Date.now(), tokens: [], resetCode: null };
+  users[uname] = {
+    email: mail, passwordHash, joined: Date.now(), tokens: [],
+    failedAttempts: 0, lockedUntil: null
+  };
   writeDB('users', users);
 
   const decks = readDB('decks');
@@ -64,6 +72,9 @@ router.post('/register', async (req, res) => {
 
 /* ---------------------------------------------------------------------
    POST /api/auth/login  { identifier, password }
+   Locks the account for 15 minutes after 5 wrong passwords in a row —
+   this is what actually protects against someone guessing a password,
+   rather than anything to do with what characters a username allows.
    --------------------------------------------------------------------- */
 router.post('/login', async (req, res) => {
   const { identifier = '', password = '' } = req.body || {};
@@ -73,9 +84,31 @@ router.post('/login', async (req, res) => {
   const users = readDB('users');
   const uname = findUsernameByIdentifier(users, identifier);
   const record = uname && users[uname];
-  const match = record ? await bcrypt.compare(password, record.passwordHash) : false;
-  if(!record || !match) return res.status(401).json({ error: 'Username/email or password is incorrect' });
 
+  if(record && record.lockedUntil && Date.now() < record.lockedUntil){
+    return res.status(429).json({ error: `Too many failed attempts. Try again in ${minutesLeft(record.lockedUntil)} minute(s).` });
+  }
+
+  const match = record ? await bcrypt.compare(password, record.passwordHash) : false;
+
+  if(!record || !match){
+    if(record){
+      // Only a real account's failed-attempt counter is tracked — an unknown
+      // username/email just gets the same generic error, straight away.
+      record.failedAttempts = (record.failedAttempts || 0) + 1;
+      if(record.failedAttempts >= MAX_FAILED_ATTEMPTS){
+        record.lockedUntil = Date.now() + LOCKOUT_MS;
+        record.failedAttempts = 0;
+        writeDB('users', users);
+        return res.status(429).json({ error: `Too many failed attempts. Try again in ${minutesLeft(record.lockedUntil)} minute(s).` });
+      }
+      writeDB('users', users);
+    }
+    return res.status(401).json({ error: 'Username/email or password is incorrect' });
+  }
+
+  record.failedAttempts = 0;
+  record.lockedUntil = null;
   const token = newToken();
   record.tokens = [...(record.tokens || []), token];
   writeDB('users', users);
@@ -119,64 +152,6 @@ router.post('/change-password', requireAuth, async (req, res) => {
 
   passwordChangedEmail(req.user.email).catch(e => console.error('[email] change-notice failed:', e.message));
   res.json({ ok: true, message: 'Password updated successfully' });
-});
-
-/* ---------------------------------------------------------------------
-   FORGOT PASSWORD — 3 steps, no auth required (the user is locked out).
-
-   Step 1: POST /api/auth/forgot-password        { identifier }
-   Step 2: POST /api/auth/verify-reset-code      { identifier, code }
-   Step 3: POST /api/auth/reset-password         { identifier, code, newPassword }
-   --------------------------------------------------------------------- */
-router.post('/forgot-password', async (req, res) => {
-  const { identifier = '' } = req.body || {};
-  const users = readDB('users');
-  const uname = findUsernameByIdentifier(users, identifier);
-  if(!uname) return res.status(404).json({ error: 'No account matches that information' });
-
-  const code = String(crypto.randomInt(100000, 1000000)); // 6 digits, 100000–999999
-  users[uname].resetCode = { code, expiresAt: Date.now() + RESET_CODE_TTL_MS };
-  writeDB('users', users);
-
-  const result = await verificationCodeEmail(users[uname].email, code);
-  res.json({
-    ok: true,
-    message: 'Verification code sent to your email. Check inbox/spam.',
-    // Demo mode (no email configured): hand the code back so the flow is still testable end-to-end.
-    ...(result.demoMode ? { demoMode: true, demoCode: code } : {})
-  });
-});
-
-router.post('/verify-reset-code', (req, res) => {
-  const { identifier = '', code = '' } = req.body || {};
-  const users = readDB('users');
-  const uname = findUsernameByIdentifier(users, identifier);
-  const reset = uname && users[uname].resetCode;
-  if(!uname || !reset) return res.status(400).json({ error: 'Invalid verification code' });
-  if(Date.now() > reset.expiresAt) return res.status(400).json({ error: 'Code expired. Request a new one.' });
-  if(reset.code !== String(code).trim()) return res.status(400).json({ error: 'Invalid verification code' });
-  res.json({ ok: true, message: 'Verified! Create new password' });
-});
-
-router.post('/reset-password', async (req, res) => {
-  const { identifier = '', code = '', newPassword = '' } = req.body || {};
-  const users = readDB('users');
-  const uname = findUsernameByIdentifier(users, identifier);
-  const reset = uname && users[uname].resetCode;
-  if(!uname || !reset) return res.status(400).json({ error: 'Invalid verification code' });
-  if(Date.now() > reset.expiresAt) return res.status(400).json({ error: 'Code expired. Request a new one.' });
-  if(reset.code !== String(code).trim()) return res.status(400).json({ error: 'Invalid verification code' });
-
-  const check = validatePassword(newPassword);
-  if(!check.valid) return res.status(400).json({ error: check.message });
-
-  users[uname].passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  users[uname].resetCode = null;   // clear the used code
-  users[uname].tokens = [];        // log every device out for safety
-  writeDB('users', users);
-
-  passwordChangedEmail(users[uname].email).catch(e => console.error('[email] change-notice failed:', e.message));
-  res.json({ ok: true, message: 'Password reset complete! Please log in.' });
 });
 
 module.exports = router;

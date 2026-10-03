@@ -1,6 +1,6 @@
 /* =======================================================================
-   Email sending — welcome mail, password-reset codes, password-changed
-   confirmation. Three modes, checked in this order:
+   Email sending — welcome mail and password-changed confirmation. Three
+   modes, checked in this order:
 
    1. RESEND_API_KEY set  → send via Resend's HTTP API (fetch, no SMTP
       involved). This is the recommended option — it works reliably on
@@ -72,13 +72,6 @@ function welcomeEmail(user){
     html: `<p>Hi ${user.username},</p><p>Your FlipStudy account is ready. Happy studying!</p>`
   });
 }
-function verificationCodeEmail(toEmail, code){
-  return sendMail({
-    to: toEmail,
-    subject: 'Your FlipStudy verification code',
-    html: `<p>Your password reset code is:</p><h2 style="letter-spacing:4px;">${code}</h2><p>This code expires in 15 minutes. If you didn't request this, you can ignore this email.</p>`
-  });
-}
 function passwordChangedEmail(toEmail){
   return sendMail({
     to: toEmail,
@@ -87,4 +80,4 @@ function passwordChangedEmail(toEmail){
   });
 }
 
-module.exports = { sendMail, welcomeEmail, verificationCodeEmail, passwordChangedEmail, demoMode, useResend, useSmtp };
+module.exports = { sendMail, welcomeEmail, passwordChangedEmail, demoMode, useResend, useSmtp };
