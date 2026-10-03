@@ -54,7 +54,6 @@ You should see:
 
 ```
 🗂️  FlipStudy backend running at http://localhost:4000
-📧  Email: DEMO MODE — reset codes will print here and in the API response...
 ```
 
 The backend also serves the `frontend/` folder directly (see the
